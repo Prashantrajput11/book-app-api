@@ -1,8 +1,8 @@
 import express from "express";
 
-import { generateToken } from "../utils/generateToken.js";
 import mongoose from "mongoose";
 import User from "../models/User.js";
+import { generateToekn } from "../helper/generateToken.js";
 
 const router = express.Router();
 // Routes
@@ -27,49 +27,42 @@ router.post("/register", async (req, res, next) => {
 		}
 
 		// Check if a user with this email already exists in the database.
-		const userExists = await User.findOne({ email });
+		const userWithEmailExists = await User.findOne({ email });
+		const userWithUserNameExists = await User.findOne({ username });
 
 		// If the user already exists, throw an error.
-		if (userExists) {
+		if (userWithEmailExists) {
 			res.status(409); // 409 Conflict
 			throw new Error("A user with this email already exists");
 		}
+		if (userWithUserNameExists) {
+			res.status(409); // 409 Conflict
+			throw new Error("A user with this username already exists");
+		}
 
+		// Get random avatar
+		const profileImage = `https://api.dicebear.com/5.x/initials/svg?seed=${username}`;
 		const user = await User.create({
 			username,
 			email,
 			password,
+			profileImage: profileImage || "",
 		});
+		// await user.save();
 
-		if (user) {
-			// Create payloads for the tokens
-			const payload = { userId: user._id.toString() };
+		// generate token
 
-			// Generate a short-lived access token and a long-lived refresh token
-			const accessToken = await generateToken(payload, "1m"); // e.g., 15 minutes
-			const refreshToken = await generateToken(payload, "30d"); // e.g., 30 days
+		const token = generateToekn(user._id);
 
-			// Set the refresh token in a secure, HttpOnly cookie
-			res.cookie("refreshToken", refreshToken, {
-				httpOnly: true, // Prevents client-side JS from accessing the cookie
-				secure: process.env.NODE_ENV === "production", // Only send over HTTPS in production
-				sameSite: "strict", // Helps prevent CSRF attacks
-				maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days, matching the token's expiration
-			});
-
-			// Send the access token and user data in the JSON response
-			res.status(201).json({
-				accessToken,
-				user: {
-					_id: user._id,
-					username: user.username,
-					email: user.email,
-				},
-			});
-		} else {
-			res.status(400);
-			throw new Error("Invalid user data");
-		}
+		res.status(200).json({
+			token,
+			user: {
+				id: user._id,
+				username: user.username,
+				email: user.email,
+				profileImage: user.profileImage,
+			},
+		});
 	} catch (error) {
 		next(error);
 	}
@@ -92,60 +85,60 @@ router.post("/register", async (req, res, next) => {
 // @route       POST /api/auth/login
 // @description Authenticate user & get token
 // @access      Public
-router.post("/login", async (req, res, next) => {
-	try {
-		const { email, password } = req.body || {};
+// router.post("/login", async (req, res, next) => {
+// 	try {
+// 		const { email, password } = req.body || {};
 
-		// Validate input
-		if (!email || !password) {
-			res.status(400);
-			throw new Error("Email and password are required");
-		}
+// 		// Validate input
+// 		if (!email || !password) {
+// 			res.status(400);
+// 			throw new Error("Email and password are required");
+// 		}
 
-		// Check if user exists
-		const user = await User.findOne({ email });
+// 		// Check if user exists
+// 		const user = await User.findOne({ email });
 
-		// Important: Use a generic error message to prevent userusername enumeration attacks
-		if (!user) {
-			res.status(401); // Unauthorized
-			throw new Error("Invalid credentials");
-		}
+// 		// Important: Use a generic error message to prevent userusername enumeration attacks
+// 		if (!user) {
+// 			res.status(401); // Unauthorized
+// 			throw new Error("Invalid credentials");
+// 		}
 
-		// Check if password matches (assuming your User model has a matchPassword method)
-		const isMatch = await user.matchPassword(password);
+// 		// Check if password matches (assuming your User model has a matchPassword method)
+// 		const isMatch = await user.matchPassword(password);
 
-		if (!isMatch) {
-			res.status(401); // Unauthorized
-			throw new Error("Invalid credentials");
-		}
+// 		if (!isMatch) {
+// 			res.status(401); // Unauthorized
+// 			throw new Error("Invalid credentials");
+// 		}
 
-		// If credentials are correct, create tokens
-		const payload = { userId: user._id.toString() };
-		const accessToken = await generateToken(payload, "1m");
-		const refreshToken = await generateToken(payload, "30d");
+// 		// If credentials are correct, create tokens
+// 		const payload = { userId: user._id.toString() };
+// 		const accessToken = await generateToken(payload, "1m");
+// 		const refreshToken = await generateToken(payload, "30d");
 
-		// Set the refresh token in the secure cookie
-		res.cookie("refreshToken", refreshToken, {
-			httpOnly: true,
-			secure: process.env.NODE_ENV === "production",
-			sameSite: "strict",
-			maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-		});
+// 		// Set the refresh token in the secure cookie
+// 		res.cookie("refreshToken", refreshToken, {
+// 			httpOnly: true,
+// 			secure: process.env.NODE_ENV === "production",
+// 			sameSite: "strict",
+// 			maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+// 		});
 
-		// Send the access token and user info back to the client
-		res.status(200).json({
-			message: "Login successful",
-			accessToken,
-			user: {
-				_id: user._id,
-				username: user.username,
-				email: user.email,
-			},
-		});
-	} catch (error) {
-		next(error);
-	}
-});
+// 		// Send the access token and user info back to the client
+// 		res.status(200).json({
+// 			message: "Login successful",
+// 			accessToken,
+// 			user: {
+// 				_id: user._id,
+// 				username: user.username,
+// 				email: user.email,
+// 			},
+// 		});
+// 	} catch (error) {
+// 		next(error);
+// 	}
+// });
 
 // @route         POST api/auth/refresh
 // @description   Generate new access token from refresh token
