@@ -3,6 +3,7 @@ import express from "express";
 import mongoose from "mongoose";
 import User from "../models/User.js";
 import { generateToekn } from "../helper/generateToken.js";
+import bcrypt from "bcryptjs";
 
 const router = express.Router();
 // Routes
@@ -85,60 +86,43 @@ router.post("/register", async (req, res, next) => {
 // @route       POST /api/auth/login
 // @description Authenticate user & get token
 // @access      Public
-// router.post("/login", async (req, res, next) => {
-// 	try {
-// 		const { email, password } = req.body || {};
+router.post("/login", async (req, res, next) => {
+	try {
+		const { email, password } = req.body || {};
 
-// 		// Validate input
-// 		if (!email || !password) {
-// 			res.status(400);
-// 			throw new Error("Email and password are required");
-// 		}
+		// 1. Validate input
+		if (!email?.trim() || !password?.trim()) {
+			res.status(400);
+			throw new Error("Email and password are required");
+		}
 
-// 		// Check if user exists
-// 		const user = await User.findOne({ email });
+		// 2. Find the user by email
+		const user = await User.findOne({ email });
 
-// 		// Important: Use a generic error message to prevent userusername enumeration attacks
-// 		if (!user) {
-// 			res.status(401); // Unauthorized
-// 			throw new Error("Invalid credentials");
-// 		}
+		// 3. If no user, or if password doesn't match, send a generic error
+		// 'bcrypt.compare' securely compares the plain-text password with the hash
+		if (!user || !(await bcrypt.compare(password, user.password))) {
+			res.status(401); // Unauthorized
+			throw new Error("Invalid email or password");
+		}
 
-// 		// Check if password matches (assuming your User model has a matchPassword method)
-// 		const isMatch = await user.matchPassword(password);
+		// 4. If credentials are correct, generate a token
+		const token = generateToekn(user._id);
 
-// 		if (!isMatch) {
-// 			res.status(401); // Unauthorized
-// 			throw new Error("Invalid credentials");
-// 		}
-
-// 		// If credentials are correct, create tokens
-// 		const payload = { userId: user._id.toString() };
-// 		const accessToken = await generateToken(payload, "1m");
-// 		const refreshToken = await generateToken(payload, "30d");
-
-// 		// Set the refresh token in the secure cookie
-// 		res.cookie("refreshToken", refreshToken, {
-// 			httpOnly: true,
-// 			secure: process.env.NODE_ENV === "production",
-// 			sameSite: "strict",
-// 			maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-// 		});
-
-// 		// Send the access token and user info back to the client
-// 		res.status(200).json({
-// 			message: "Login successful",
-// 			accessToken,
-// 			user: {
-// 				_id: user._id,
-// 				username: user.username,
-// 				email: user.email,
-// 			},
-// 		});
-// 	} catch (error) {
-// 		next(error);
-// 	}
-// });
+		// 5. Send the token and user data in the response
+		res.status(200).json({
+			token,
+			user: {
+				id: user._id,
+				username: user.username,
+				email: user.email,
+				profileImage: user.profileImage,
+			},
+		});
+	} catch (error) {
+		next(error);
+	}
+});
 
 // @route         POST api/auth/refresh
 // @description   Generate new access token from refresh token
