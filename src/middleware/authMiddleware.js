@@ -1,45 +1,37 @@
 import jwt from "jsonwebtoken";
-import User from "../models/User.js"; // Adjust the path to your User model
+import User from "../models/User.js";
 
-/**
- * Middleware to protect routes by verifying a JWT.
- */
-export const protect = async (req, res, next) => {
-	let token;
+// const response = await fetch(`http://localhost:3000/api/books`, {
+//   method: "POST",
+//   body: JSON.stringify({
+//     title,
+//     caption
+//   }),
+//   headers: { Authorization: `Bearer ${token}` },
+// });
 
-	// Check if the Authorization header exists and starts with "Bearer"
-	if (
-		req.headers.authorization &&
-		req.headers.authorization.startsWith("Bearer")
-	) {
-		try {
-			// 1. Extract the token from the header (e.g., "Bearer <token>")
-			token = req.headers.authorization.split(" ")[1];
+const protect = async (req, res, next) => {
+	try {
+		// get token
+		const token = req.header("Authorization").replace("Bearer ", "");
+		if (!token)
+			return res
+				.status(401)
+				.json({ message: "No authentication token, access denied" });
 
-			// 2. Verify the token using the secret key
-			const decoded = jwt.verify(token, process.env.JWT_SECRET);
+		// verify token
+		const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-			// 3. Find the user in the database using the ID from the token's payload
-			// We attach the user to the request object, excluding the password
-			req.user = await User.findById(decoded.id).select("-password");
+		// find user
+		const user = await User.findById(decoded.userId).select("-password");
+		if (!user) return res.status(401).json({ message: "Token is not valid" });
 
-			// 4. If user is found, proceed to the next middleware or route handler
-			if (req.user) {
-				return next();
-			} else {
-				res.status(401);
-				throw new Error("Not authorized, user not found");
-			}
-		} catch (error) {
-			// This will catch errors from jwt.verify (e.g., expired token)
-			res.status(401);
-			return next(new Error("Not authorized, token failed"));
-		}
-	}
-
-	// If no token is found in the header at all
-	if (!token) {
-		res.status(401);
-		return next(new Error("Not authorized, no token"));
+		req.user = user;
+		next();
+	} catch (error) {
+		console.error("Authentication error:", error.message);
+		res.status(401).json({ message: "Token is not valid" });
 	}
 };
+
+export default protect;
