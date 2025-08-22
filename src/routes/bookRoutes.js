@@ -1,13 +1,11 @@
 import mongoose from "mongoose";
 import express from "express";
-// import cloudinary from "../lib/cloudinary";
 
 import Book from "../models/Book.js";
 import protect from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// CREATE a new book
 router.post("/", protect, async (req, res) => {
 	try {
 		const { title, image, caption, rating } = req.body;
@@ -34,7 +32,7 @@ router.post("/", protect, async (req, res) => {
 		res.status(201).json(newBook);
 	} catch (error) {}
 });
-// READ all books | Paginated API
+
 router.get("/", protect, async (req, res) => {
 	try {
 		const page = req.query.page || 1;
@@ -69,7 +67,6 @@ router.delete("/:id", protect, async (req, res) => {
 		if (book.user.toString() !== req.user._id.toString())
 			return res.status(401).json({ message: "Unauthorized" });
 
-		// delete image from cloduinary
 		if (book.image && book.image.includes("cloudinary")) {
 			try {
 				const publicId = book.image.split("/").pop().split(".")[0];
@@ -88,7 +85,6 @@ router.delete("/:id", protect, async (req, res) => {
 	}
 });
 
-// get recommended books by the logged in user
 router.get("/user", protect, async (req, res) => {
 	try {
 		const books = await Book.find({ user: req.user._id }).sort({
