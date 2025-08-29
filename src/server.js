@@ -4,6 +4,7 @@ import "dotenv/config";
 import authRoutes from "./routes/authRoutes.js";
 import bookRoutes from "./routes/bookRoutes.js";
 import { connectDB } from "./lib/db.js";
+import cors from "cors"; // 1. Import cors
 
 const app = express();
 const PORT = process.env.PORT || 3000;
