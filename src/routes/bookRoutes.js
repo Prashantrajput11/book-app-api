@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import express from "express";
+import cloudinary from "../lib/cloudinary.js";
 
 import Book from "../models/Book.js";
 import protect from "../middleware/authMiddleware.js";
@@ -15,14 +16,14 @@ router.post("/", protect, async (req, res) => {
 		}
 
 		// upload image to cloudinary
-		// const uploadRes = await cloudinary.uploader.upload(image);
+		const uploadRes = await cloudinary.uploader.upload(image);
 
-		// const imageUrl = uploadRes.secure_url;
+		const imageUrl = uploadRes.secure_url;
 
 		// Save to MongoDB
 		const newBook = new Book({
 			title,
-			image: image,
+			image: imageUrl,
 			caption,
 			rating,
 			user: req.user._id,
@@ -30,31 +31,37 @@ router.post("/", protect, async (req, res) => {
 		await newBook.save();
 
 		res.status(201).json(newBook);
-	} catch (error) {}
+	} catch (error) {
+		console.log("error uploading image", error.message);
+		// next();
+	}
 });
 
-router.get("/", protect, async (req, res) => {
+router.get("/", protect, async (req, res, next) => {
 	try {
-		const page = req.query.page || 1;
-		const limit = req.query.page || 5;
-
+		const page = parseInt(req.query.page) || 1;
+		const limit = parseInt(req.query.limit) || 5;
 		const skip = (page - 1) * limit;
 
-		const books = await Book.find()
-			.sort({ createdAt: -1 })
-			.skip(skip)
-			.limit(limit)
-			.populate("user", "username profileImage");
+		// Run both database queries in parallel for better performance
+		const [totalBooks, books] = await Promise.all([
+			Book.countDocuments(),
+			Book.find({})
+				.sort({ createdAt: -1 })
+				.skip(skip)
+				.limit(limit)
+				.populate("user", "username profileImage"), // This populates the author's details
+		]);
 
-		const totalBooks = books.countDocuments();
-		res.send({
+		res.status(200).json({
 			books,
 			currentPage: page,
-			totalBooks,
 			totalPages: Math.ceil(totalBooks / limit),
+			totalBooks,
 		});
 	} catch (error) {
-		res.status(500).json({ message: "Internal server error" });
+		// Pass any errors to the global error handler
+		next(error);
 	}
 });
 

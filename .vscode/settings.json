@@ -1,0 +1,9 @@
+{
+	"workbench.colorCustomizations": {
+		"activityBar.background": "#008080", // Teal Activity Bar
+		"sideBar.background": "#014D4E", // Dark Teal Sidebar
+		"sideBar.foreground": "#E0FFFF", // Light Cyan Text
+		"titleBar.activeBackground": "#006D6D", // Title Bar Teal
+		"titleBar.activeForeground": "#FFFFFF" // Title Bar Text White
+	}
+}

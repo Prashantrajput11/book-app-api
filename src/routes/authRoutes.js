@@ -34,7 +34,7 @@ router.post("/register", async (req, res, next) => {
 			throw new Error("A user with this username already exists");
 		}
 
-		const profileImage = `https://api.dicebear.com/5.x/initials/svg?seed=${username}`;
+		const profileImage = `https://api.dicebear.com/9.x/adventurer/png?seed=${username}`;
 		const user = await User.create({
 			username,
 			email,

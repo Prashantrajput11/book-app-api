@@ -7,8 +7,9 @@ import { connectDB } from "./lib/db.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-app.use(express.json());
+app.use(cors()); // This allows requests from any origin
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 app.get("/", (req, res) => {
 	res.send("Hello, World!");
