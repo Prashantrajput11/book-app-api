@@ -1,5 +1,6 @@
 import express from "express";
 import "dotenv/config";
+import multer from "multer";
 
 import authRoutes from "./routes/authRoutes.js";
 import bookRoutes from "./routes/bookRoutes.js";
@@ -8,6 +9,7 @@ import cors from "cors"; // 1. Import cors
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
 app.use(cors()); // This allows requests from any origin
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));

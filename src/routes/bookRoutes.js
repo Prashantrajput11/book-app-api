@@ -4,26 +4,65 @@ import cloudinary from "../lib/cloudinary.js";
 
 import Book from "../models/Book.js";
 import protect from "../middleware/authMiddleware.js";
+import upload from "../middleware/multerMiddleware.js";
 
 const router = express.Router();
 
-router.post("/", protect, async (req, res) => {
-	try {
-		const { title, image, caption, rating } = req.body;
+// router.post("/", protect, async (req, res) => {
+// 	try {
+// 		const { title, image, caption, rating } = req.body;
 
-		if (!title || !caption || !image || !rating) {
-			return res.status(400).json({ message: "All fields are required." });
+// 		if (!title || !caption || !image || !rating) {
+// 			return res.status(400).json({ message: "All fields are required." });
+// 		}
+
+// 		// upload image to cloudinary
+// 		const uploadRes = await cloudinary.uploader.upload(image);
+
+// 		const imageUrl = uploadRes.secure_url;
+
+// 		// Save to MongoDB
+// 		const newBook = new Book({
+// 			title,
+// 			image: imageUrl,
+// 			caption,
+// 			rating,
+// 			user: req.user._id,
+// 		});
+// 		await newBook.save();
+
+// 		res.status(201).json(newBook);
+// 	} catch (error) {
+// 		console.log("error uploading image", error.message);
+// 		// next();
+// 	}
+// });
+
+router.post("/", protect, upload.single("image"), async (req, res, next) => {
+	try {
+		// 3. Text fields are now in `req.body`
+		const { title, caption, rating } = req.body;
+		// 4. The uploaded file's information is in `req.file`
+		const file = req.file;
+
+		if (!title || !caption || !rating || !file) {
+			res.status(400);
+			throw new Error("All fields, including an image, are required.");
 		}
 
-		// upload image to cloudinary
-		const uploadRes = await cloudinary.uploader.upload(image);
+		// 1. Convert the file buffer to a Base64 string
+		const b64 = Buffer.from(file.buffer).toString("base64");
+		// 2. Create a data URI string
+		let dataURI = "data:" + file.mimetype + ";base64," + b64;
 
-		const imageUrl = uploadRes.secure_url;
+		const uploadRes = await cloudinary.uploader.upload(dataURI, {
+			folder: "book_covers",
+		});
 
 		// Save to MongoDB
 		const newBook = new Book({
 			title,
-			image: imageUrl,
+			image: uploadRes.secure_url,
 			caption,
 			rating,
 			user: req.user._id,
@@ -32,8 +71,8 @@ router.post("/", protect, async (req, res) => {
 
 		res.status(201).json(newBook);
 	} catch (error) {
-		console.log("error uploading image", error.message);
-		// next();
+		// **CRITICAL FIX:** Pass errors to your global error handler
+		next(error);
 	}
 });
 
